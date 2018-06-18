@@ -1,0 +1,2 @@
+#!/bin/sh
+pythonw .git/hooks/code-analysis.py --src-root=src/KonturSverka &

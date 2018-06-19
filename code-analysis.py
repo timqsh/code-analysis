@@ -3,8 +3,8 @@ import os
 import glob
 import re
 import itertools
-import git
 import argparse
+import subprocess
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--src-root', dest='src_root', action='store')
@@ -19,6 +19,9 @@ re_method_start = r'(^\s*Функция|^\s*Процедура)\s*([A-Яа-я\w]
 re_method_end = r'^\s*КонецФункции|^\s*КонецПроцедуры'
 re_return = r'\s*Возврат'
 re_directive = r'\s*&([A-Яа-я\w]+)'
+
+class GitDiffParseException(Exception):
+    pass
 
 class Epf():
     def __init__(self):
@@ -122,25 +125,31 @@ def in_diff(method, diff, module):
         return False
 
 def git_diff():
-    repo = git.Repo('.')
+    
+    re_file_changes = r"\+\+\+ b\/(.*)$"
+    re_patch_data = r'@@.*\+(\d+)(?:,(\d*))?.*@@'
+
+    result = subprocess.run(["git", "diff", "head^", "head", "--", "*.bsl"], stdout=subprocess.PIPE)
+    diff_text = result.stdout.decode('utf-8')
+
     changes = {}
-    # TODO сейчас сравнивает HEAD c HEAD^ и парсит '-'. 
-    # Наверное логичнее сравнивать HEAD^ c HEAD и парсить '+'
-    HEAD = repo.head.commit
-    all_bsl_changes = HEAD.diff('HEAD^', paths='*.bsl', create_patch=True)
-    for file_changes in all_bsl_changes:
-        patches = re.findall(r'@@(.*)@@', str(file_changes))
-        file_path = os.path.normpath(file_changes.a_path)
-        changes[file_path] = set()
-        for patch in patches:
-            groups = re.search(r'\-(\d+)(?:,(\d*))?', patch).groups()
-            start_line = int(groups[0])
-            num_lines = int(groups[1]) if groups[1] else 1
-            end_line = start_line + num_lines - 1
-            changes[file_path] |= set(range(start_line, end_line))
+    for line in diff_text.splitlines():
+        match = re.match(re_file_changes, line)
+        if match:
+            file_name = match.groups()[0]
+            file_name = os.path.normpath(file_name)
+            changes[file_name] = set()
+        else:
+            match = re.match(re_patch_data, line)
+            if match:
+                if file_name == "":
+                    raise GitDiffParseException("found patch info before file info")
+                start_line = int(match.groups()[0])
+                num_lines = int(match.groups()[1]) if match.groups()[1] else 1
+                end_line = start_line + num_lines - 1
+                changes[file_name] |= set(range(start_line, end_line))
     return changes
-
-
+    
 diff = git_diff()
 epf = parse_modules()
 all_errors = itertools.chain(

@@ -5,6 +5,10 @@ import re
 import itertools
 import git
 import argparse
+import _locale
+# Этот хак позволяет позволяет функциям "open" из модуля git
+# открывать файл с кодировкой utf8 по умолчанию
+_locale._getdefaultlocale = (lambda *args: ['ru_RU', 'utf8'])
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--src-root', dest='src_root', action='store')

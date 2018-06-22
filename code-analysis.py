@@ -34,6 +34,8 @@ class Module():
     def __init__(self, full_name):
         self.full_name = full_name
         self.methods = {}
+    def __repr__(self):
+        return self.full_name
 
 class Method():
     def __init__(self, start, type):
@@ -44,6 +46,8 @@ class Method():
         self.tag = False
         self.has_return = False
         self.directive = ''
+    def __repr__(self):
+        return "{}: {}-{}".format(self.type, self.start, self.end)
 
 
 def parse_modules():
@@ -83,7 +87,7 @@ def parse_module(methods, lines):
                 method.has_return = True
             if re.match(tag, line):
                 method.tag = True
-            method.lines.append(line) 
+            method.lines.append(line)
 
 def check_returns(epf, diff):
     for module in epf.modules:
@@ -94,7 +98,7 @@ def check_returns(epf, diff):
                        in_diff(method, diff, module))
 
 def check_directive(epf, diff):
-    managed_forms = filter(lambda x: 'Управляемая' in x.full_name, epf.modules)
+    managed_forms = filter(lambda x: re.match(".*Форма.bsl$", x.full_name), epf.modules)
     for module in managed_forms:
         for method_name, method in module.methods.items():
             if not method.directive:
@@ -126,7 +130,8 @@ def in_diff(method, diff, module):
         return False
 
 def git_diff():
-    repo = git.Repo('.')
+    repo_path = os.path.abspath(os.path.join(src ,"../..")) 
+    repo = git.Repo(repo_path)
     changes = {}
     # TODO сейчас сравнивает HEAD c HEAD^ и парсит '-'. 
     # Наверное логичнее сравнивать HEAD^ c HEAD и парсить '+'

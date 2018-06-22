@@ -15,6 +15,11 @@ parser.add_argument('--src-root', dest='src_root', action='store')
 args = parser.parse_args()
 
 src = args.src_root
+assert src, "Не указана папка с исходниками обработки"
+assert os.path.isdir(src) and\
+    os.path.isfile(os.path.join(src, "ObjectModule.bsl")),\
+    "Не найдена папка с исходниками обработки"
+    
 log_file = 'Build/code-analysis.log'
 tag = '.*Метод присутствует в клиентском и серверном модулях.*'
 client_module_name = 'МодульОбъектаКлиент'

@@ -24,8 +24,8 @@ log_file = 'Build/code-analysis.log'
 tag = '.*Метод присутствует в клиентском и серверном модулях.*'
 client_module_name = 'МодульОбъектаКлиент'
 
-re_method_start = r'(^\s*Функция|^\s*Процедура)\s*([A-Яа-я\w]+)'
-re_method_end = r'^\s*КонецФункции|^\s*КонецПроцедуры'
+re_method_start = r'^\s*(Функция|Процедура)\s+([A-Яа-я\w]+).*'
+re_method_end = r'^\s*(?:КонецФункции|КонецПроцедуры).*'
 re_return = r'\s*Возврат'
 re_directive = r'\s*&([A-Яа-я\w]+)'
 
@@ -72,27 +72,29 @@ def parse_modules():
 
 def parse_module(methods, lines):
     in_method = False
+    directive = ""
     for i, line in enumerate(lines):
         match = re.match(re_method_start, line)
+        method: Method
         if match:
             method = Method(start=i, type=match.groups()[0])
             methods[match.groups()[1]] = method
-            # TODO вроде у методов с описанием директива дальше
-            # но в Сверке никто не пишет описания к методам, так что пофигу
-            prev_line = lines[i-1]
-            directive_match = re.match(re_directive, prev_line)
-            if directive_match:
-                method.directive = directive_match.groups()[0]    
+            method.directive = directive    
             in_method = True
         elif re.match(re_method_end, line):
             method.end = i
             in_method = False
+            directive = ""
         elif in_method:
             if re.match(re_return, line):
                 method.has_return = True
             if re.match(tag, line):
                 method.tag = True
             method.lines.append(line)
+        else: # not in method
+            directive_match = re.match(re_directive, line)
+            if directive_match:
+                directive = directive_match.groups()[0]    
 
 def check_returns(epf, diff):
     for module in epf.modules:
